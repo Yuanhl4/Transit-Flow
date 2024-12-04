@@ -1,23 +1,21 @@
-# GTFS Trip Planner Demo using Python
+# GTFS Trip Planner Demo with Web Interface using Streamlit
 
 ## Step 1: Prepare Environment
 # Make sure you have installed necessary Python packages:
-# pip install pandas networkx
+# pip install pandas networkx streamlit openai
 
 import pandas as pd
 import networkx as nx
+import streamlit as st
+import openai
 
-# Load the GTFS data
 stops = pd.read_csv('stops.txt')
 routes = pd.read_csv('routes.txt')
 trips = pd.read_csv('trips.txt')
 stop_times = pd.read_csv('stop_times.txt')
 shapes = pd.read_csv('shapes.txt')
 
-# Display a preview of the stops data to ensure the files are being read correctly
-print(stops.head())
-
-## Step 2: Build Graph for Route Planning
+# Build Graph for Route Planning
 # Build a directed graph using NetworkX to represent stops and routes
 graph = nx.DiGraph()
 
@@ -35,10 +33,7 @@ for _, stop_time in stop_times.iterrows():
     previous_stop = stop_time
     previous_trip_id = current_trip_id
 
-print(f"Graph has {len(graph.nodes)} nodes and {len(graph.edges)} edges")
-
-## Step 3: Create Route Planner
-# Define a function that finds the shortest path between two stops
+# Define function to find the shortest path between two stops
 def find_shortest_route(graph, start_stop_id, end_stop_id):
     try:
         path = nx.shortest_path(graph, source=str(start_stop_id), target=str(end_stop_id))
@@ -48,7 +43,7 @@ def find_shortest_route(graph, start_stop_id, end_stop_id):
     except nx.NodeNotFound:
         return None
 
-# Define a function to provide detailed route information
+# Define function to provide detailed route information
 def get_route_details(route_path):
     details = []
     for i in range(len(route_path) - 1):
@@ -58,28 +53,52 @@ def get_route_details(route_path):
         details.append(f"From {start_stop['stop_name'].values[0]} to {end_stop['stop_name'].values[0]} via Trip {trip_id}")
     return details
 
-## Step 4: Run Demo
-# Select two stops to find a route between
-while True:
-    start_stop_id = input("Enter Start Stop ID (or type 'exit' to quit): ")
-    if start_stop_id.lower() == 'exit':
-        break
-    if start_stop_id not in stops['stop_id'].astype(str).values:
-        print("Invalid Start Stop ID. Please enter a valid stop ID.")
-        continue
-    
-    end_stop_id = input("Enter End Stop ID (or type 'exit' to quit): ")
-    if end_stop_id.lower() == 'exit':
-        break
-    if end_stop_id not in stops['stop_id'].astype(str).values:
-        print("Invalid End Stop ID. Please enter a valid stop ID.")
-        continue
+# Streamlit UI
+st.title("GTFS Trip Planner Demo")
 
-    route = find_shortest_route(graph, start_stop_id, end_stop_id)
-    if route:
-        print("\nSuggested Route:")
-        route_details = get_route_details(route)
-        for detail in route_details:
-            print(detail)
-    else:
-        print("No route available between the selected stops.")
+# Preferences Buttons
+st.sidebar.header("Travel Preferences")
+preferences = []
+if st.sidebar.button("Shortest Route"):
+    preferences.append("shortest_route")
+if st.sidebar.button("Least Transfers"):
+    preferences.append("least_transfers")
+if st.sidebar.button("Scenic Route"):
+    preferences.append("scenic_route")
+
+# User Inputs
+start_stop_id = st.text_input("Enter Start Stop ID:")
+end_stop_id = st.text_input("Enter End Stop ID:")
+
+# Voice/Text Input for ChatGPT
+user_message = st.text_area("Enter your question or additional preferences:")
+if st.button("Submit Request"):
+    # Route Planning
+    if start_stop_id and end_stop_id:
+        if start_stop_id not in stops['stop_id'].astype(str).values:
+            st.error("Invalid Start Stop ID. Please enter a valid stop ID.")
+        elif end_stop_id not in stops['stop_id'].astype(str).values:
+            st.error("Invalid End Stop ID. Please enter a valid stop ID.")
+        else:
+            route = find_shortest_route(graph, start_stop_id, end_stop_id)
+            if route:
+                route_details = get_route_details(route)
+                st.subheader("Suggested Route:")
+                for detail in route_details:
+                    st.write(detail)
+            else:
+                st.error("No route available between the selected stops.")
+
+    # Prepare input for OpenAI API
+    openai_message = f"User preferences: {preferences}. User message: {user_message}. Start Stop ID: {start_stop_id}, End Stop ID: {end_stop_id}."
+    # Placeholder for OpenAI API response (since we do not have the API key yet)
+    st.subheader("ChatGPT Response:")
+    st.write("[Response from ChatGPT would be displayed here]")
+
+# Instructions for running the Streamlit app
+st.markdown("""
+### Instructions
+- Save this script as `trip_planner_app.py`.
+- Run the app using the command: `streamlit run trip_planner_app.py`
+- Use the sidebar to select preferences, input stop IDs, and add extra information for ChatGPT.
+""")
